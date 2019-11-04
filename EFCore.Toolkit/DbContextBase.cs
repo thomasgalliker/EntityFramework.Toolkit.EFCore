@@ -377,7 +377,11 @@ namespace EFCore.Toolkit
                 foreach (var propertyName in dbEntityEntry.CurrentValues.Properties.Select(p => p.Name))
                 {
                     var property = dbEntityEntry.Property(propertyName);
+#if NETSTANDARD2_1
+                    if (property.Metadata.IsShadowProperty())
+#else
                     if (property.Metadata.IsShadowProperty)
+#endif
                     {
                         // BUG: Workaround for resetting IsModified of Discriminator property
                         property.IsModified = false;

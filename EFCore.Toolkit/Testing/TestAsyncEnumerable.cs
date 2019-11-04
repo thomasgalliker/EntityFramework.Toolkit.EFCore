@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Threading;
 
 namespace EFCore.Toolkit.Testing
 {
@@ -23,10 +24,17 @@ namespace EFCore.Toolkit.Testing
         {
         }
 
+#if NETSTANDARD2_1
+        public IAsyncEnumerator<T> GetAsyncEnumerator(CancellationToken cancellationToken = default)
+        {
+            return new TestAsyncEnumerator<T>(this.AsEnumerable().GetEnumerator());
+        }
+#else    
         public IAsyncEnumerator<T> GetEnumerator()
         {
             return new TestAsyncEnumerator<T>(this.AsEnumerable().GetEnumerator());
         }
+#endif
 
         IQueryProvider IQueryable.Provider => new TestAsyncQueryProvider<T>(this);
     }

@@ -1,7 +1,13 @@
 ﻿using System;
 using System.Data;
 using System.Data.Common;
+
+#if NETSTANDARD2_1
+using Microsoft.Data.SqlClient;
+#else
 using System.Data.SqlClient;
+#endif
+
 using IDbConnection = EFCore.Toolkit.Abstractions.IDbConnection;
 
 namespace EFCore.Toolkit.Extensions

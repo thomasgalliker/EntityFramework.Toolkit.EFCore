@@ -14,9 +14,7 @@ namespace EFCore.Toolkit.Extensions
             modelBuilder.Entity<TEntity>(entityConfiguration.Configure);
         }
 
-#if !NETSTANDARD1_3 && !NETFX
-        
-
+#if NETSTANDARD2_0
         public static void RemovePluralizingTableNameConvention(this ModelBuilder modelBuilder)
         {
             modelBuilder.EntityTypes().Configure(entityType =>
@@ -77,7 +75,7 @@ namespace EFCore.Toolkit.Extensions
             }
         }
 
-#if !NETSTANDARD1_3
+#if NETSTANDARD2_0
         /// <summary>
         ///  Configures all decimals and nullable decimals with a default <paramref name="precision"/> (maximum allowed digits in a number) and <paramref name="scale"/> (maximum allowed digits after the decimal point).
         /// </summary>

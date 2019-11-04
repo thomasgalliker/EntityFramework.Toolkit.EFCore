@@ -128,7 +128,7 @@ namespace EFCore.Toolkit.Extensions
             return entity;
         }
 
-#if !NETSTANDARD1_3 && !NETFX
+#if NETSTANDARD2_0
         /// <summary>
         /// Returns the number of table rows per database table.
         /// </summary>

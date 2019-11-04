@@ -20,16 +20,29 @@ namespace EFCore.Toolkit.Testing
             this.inner = inner;
         }
 
-        public void Dispose()
-        {
-            this.inner.Dispose();
-        }
-
         public T Current => this.inner.Current;
 
+#if NETSTANDARD2_1
+        public ValueTask<bool> MoveNextAsync()
+        {
+            return new ValueTask<bool>(this.inner.MoveNext());
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            this.inner.Dispose();
+            return new ValueTask();
+        }
+#else    
         public Task<bool> MoveNext(CancellationToken cancellationToken)
         {
             return Task.FromResult(this.inner.MoveNext());
         }
+
+        public void Dispose()
+        {
+            this.inner.Dispose();
+        }
+#endif
     }
 }

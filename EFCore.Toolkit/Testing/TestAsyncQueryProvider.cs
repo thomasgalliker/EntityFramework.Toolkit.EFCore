@@ -43,6 +43,12 @@ namespace EFCore.Toolkit.Testing
             return this.inner.Execute<TResult>(expression);
         }
 
+#if NETSTANDARD2_1
+        public TResult ExecuteAsync<TResult>(Expression expression, CancellationToken cancellationToken)
+        {
+            return this.Execute<TResult>(expression);
+        }
+#else
         public IAsyncEnumerable<TResult> ExecuteAsync<TResult>(Expression expression)
         {
             return new TestAsyncEnumerable<TResult>(expression);
@@ -52,5 +58,6 @@ namespace EFCore.Toolkit.Testing
         {
             return Task.FromResult(this.Execute<TResult>(expression));
         }
+#endif
     }
 }

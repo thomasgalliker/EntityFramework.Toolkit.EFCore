@@ -1,5 +1,10 @@
 ﻿using System;
+
+#if NETSTANDARD2_1
+using Microsoft.Data.SqlClient;
+#else
 using System.Data.SqlClient;
+#endif
 
 namespace EFCore.Toolkit.Testing
 {
