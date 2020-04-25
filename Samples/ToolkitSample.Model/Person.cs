@@ -1,6 +1,6 @@
 using System;
 using System.Diagnostics;
-using EFCore.Toolkit.Contracts.Auditing;
+using EFCore.Toolkit.Abstractions.Auditing;
 
 namespace ToolkitSample.Model
 {
@@ -17,7 +17,7 @@ namespace ToolkitSample.Model
 
         public string CountryId { get; set; }
 
-        public virtual Country Country { get; set; }
+        public Country Country { get; set; }
 
         public byte[] RowVersion { get; set; }
 

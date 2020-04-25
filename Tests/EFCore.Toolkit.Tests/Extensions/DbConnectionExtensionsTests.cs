@@ -1,12 +1,14 @@
-﻿using EFCore.Toolkit.Contracts;
+﻿using EFCore.Toolkit.Abstractions;
 using EFCore.Toolkit.Extensions;
 using EFCore.Toolkit.Testing;
+using EFCore.Toolkit.Tests.Auditing;
+using EFCore.Toolkit.Utils;
 using FluentAssertions;
 using ToolkitSample.DataAccess.Context;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace EntityFramework.Toolkit.Tests.Extensions
+namespace EFCore.Toolkit.Tests.Extensions
 {
     public class DbConnectionExtensionsTests : ContextTestBase<EmployeeContext>
     {
@@ -15,6 +17,7 @@ namespace EntityFramework.Toolkit.Tests.Extensions
         public DbConnectionExtensionsTests(ITestOutputHelper testOutputHelper)
             : base(() => dbConnection, null, testOutputHelper.WriteLine)
         {
+            AssemblyLoader.Current = new TestAssemblyLoader();
         }
 
         [Fact]
@@ -46,7 +49,6 @@ namespace EntityFramework.Toolkit.Tests.Extensions
 
             // Assert
             databaseName.Should().StartWith("EF.Toolkit.Tests_");
-            databaseName.Should().EndWith(".mdf");
         }
     }
 }

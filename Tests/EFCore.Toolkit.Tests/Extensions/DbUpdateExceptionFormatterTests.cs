@@ -1,9 +1,9 @@
 ﻿using System;
-using EFCore.Toolkit;
-using EFCore.Toolkit.Contracts;
+using EFCore.Toolkit.Abstractions;
 using EFCore.Toolkit.Testing;
-using EntityFramework.Toolkit.Tests.Stubs;
-
+using EFCore.Toolkit.Tests.Auditing;
+using EFCore.Toolkit.Tests.Stubs;
+using EFCore.Toolkit.Utils;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using ToolkitSample.DataAccess.Context;
@@ -12,7 +12,7 @@ using ToolkitSample.Model;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace EntityFramework.Toolkit.Tests.Extensions
+namespace EFCore.Toolkit.Tests.Extensions
 {
     /// <summary>
     ///     Repository tests using <see cref="EmployeeContextTestDbConnection" /> as database connection.
@@ -27,6 +27,8 @@ namespace EntityFramework.Toolkit.Tests.Extensions
                   log: testOutputHelper.WriteLine)
         {
             this.testOutputHelper = testOutputHelper;
+
+            AssemblyLoader.Current = new TestAssemblyLoader();
         }
 
         [Fact]
@@ -44,10 +46,12 @@ namespace EntityFramework.Toolkit.Tests.Extensions
                 Action action = () => employeeRepository.Save();
 
                 // Assert
-                action.ShouldThrow<DbUpdateException>()
+                action.Should().Throw<DbUpdateException>()
                     .Which.Message.Should()
-                    .Contain("The INSERT statement conflicted with the FOREIGN KEY constraint \"FK_dbo.Person_dbo.Countries_CountryId\".")
-                    .And.Contain("(X) CountryId: Type: String, Value: \"XX\"");
+                    .Contain("Microsoft.EntityFrameworkCore.DbUpdateException: An error occurred while updating the entries. See the inner exception for details. " +
+                             "---> System.Data.SqlClient.SqlException: The INSERT statement conflicted with the FOREIGN KEY constraint \"FK_Person_Country_CountryId\". " +
+                             "The conflict occurred in database \"EF.Toolkit.Tests_")
+                    .And.Contain("table \"dbo.Country\", column 'Id'.");
             }
         }
     }

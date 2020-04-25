@@ -1,8 +1,8 @@
 ﻿using System;
 using EFCore.Toolkit;
+using EFCore.Toolkit.Abstractions;
 using EFCore.Toolkit.Auditing;
-using EFCore.Toolkit.Auditing.Extensions;
-using EFCore.Toolkit.Contracts;
+using EFCore.Toolkit.Extensions;
 using Microsoft.EntityFrameworkCore;
 using ToolkitSample.Model;
 using ToolkitSample.Model.Auditing;
@@ -53,7 +53,7 @@ namespace ToolkitSample.DataAccess.Context.Auditing
             modelBuilder.AddConfiguration(new TestEntityAuditEntityTypeConfiguration());
             modelBuilder.AddConfiguration(new StudentEntityConfiguration());
             modelBuilder.AddConfiguration(new DepartmentEntityConfiguration());
-            modelBuilder.AddConfiguration(new RoomConfiguration());
+            modelBuilder.AddConfiguration(new RoomEntityTypeConfiguration());
             modelBuilder.AddConfiguration(new CountryEntityConfiguration());
             modelBuilder.AddConfiguration(new ApplicationSettingEntityTypeConfiguration());
         }

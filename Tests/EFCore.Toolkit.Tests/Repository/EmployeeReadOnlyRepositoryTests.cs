@@ -1,11 +1,12 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 using EFCore.Toolkit;
-using EFCore.Toolkit.Contracts;
-using EFCore.Toolkit.Contracts.Extensions;
+using EFCore.Toolkit.Abstractions;
+using EFCore.Toolkit.Abstractions.Extensions;
 using EFCore.Toolkit.Testing;
-using EntityFramework.Toolkit.Tests.Stubs;
-
+using EFCore.Toolkit.Tests.Auditing;
+using EFCore.Toolkit.Tests.Stubs;
+using EFCore.Toolkit.Utils;
 using FluentAssertions;
 using ToolkitSample.DataAccess.Context;
 using ToolkitSample.DataAccess.Contracts.Repository;
@@ -15,7 +16,7 @@ using ToolkitSample.Model;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace EntityFramework.Toolkit.Tests.Repository
+namespace EFCore.Toolkit.Tests.Repository
 {
     public class EmployeeReadOnlyRepositoryTests : ContextTestBase<EmployeeContext>
     {
@@ -24,6 +25,7 @@ namespace EntityFramework.Toolkit.Tests.Repository
                   databaseInitializer: new CreateDatabaseIfNotExists<EmployeeContext>(),
                   log: testOutputHelper.WriteLine)
         {
+            AssemblyLoader.Current = new TestAssemblyLoader();
         }
 
         [Fact]

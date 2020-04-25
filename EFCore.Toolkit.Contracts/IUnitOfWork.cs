@@ -1,15 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
-
-#if !NET40
 using System.Threading.Tasks;
+#if !NET40
+
 #endif
 
-namespace EFCore.Toolkit.Contracts
+namespace EFCore.Toolkit.Abstractions
 {
     public interface IUnitOfWork : IDisposable
     {
-        void RegisterContext<TContext>(TContext contextFactory) where TContext : IContext;
+        void RegisterContext<TContext>(TContext context) where TContext : IContext;
 
         /// <summary>
         /// Saves pending changes to all registered contexts.

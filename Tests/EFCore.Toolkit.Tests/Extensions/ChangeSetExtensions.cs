@@ -1,10 +1,10 @@
 ﻿using System;
 using System.Linq;
 using System.Text;
-using EFCore.Toolkit.Contracts;
+using EFCore.Toolkit.Abstractions;
 using FluentAssertions.Execution;
 
-namespace EntityFramework.Toolkit.Tests.Extensions
+namespace EFCore.Toolkit.Tests.Extensions
 {
     internal static class ChangeSetExtensions
     {

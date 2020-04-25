@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
-using EFCore.Toolkit.Contracts;
+using EFCore.Toolkit.Abstractions;
 using EFCore.Toolkit.Extensions;
 using EFCore.Toolkit.Utils;
 using Microsoft.EntityFrameworkCore;
@@ -12,6 +12,42 @@ using System.Threading.Tasks;
 
 namespace EFCore.Toolkit
 {
+    public class GenericRepository<TEntity, TUserKey> : GenericRepository<TEntity>, IUserContextAwareRepository<TEntity> where TEntity : class, ICreatedBy<TUserKey>
+    {
+        private readonly IUserContext<TUserKey> userContext;
+
+        /// <summary>
+        ///     Initializes a new instance of the <see cref="GenericRepository{TEntity, TUserKey}" /> class.
+        /// </summary>
+        public GenericRepository(IDbContext context, IUserContext<TUserKey> userContext) : base(context)
+        {
+            this.userContext = userContext ?? throw new ArgumentNullException(nameof(userContext));
+        }
+
+        /// <summary>
+        /// Returns <see cref="IQueryable{TEntity}"/> which filters entities by current user.
+        /// </summary>
+        public override IQueryable<TEntity> Get()
+        {
+            return this.Get(filterByCurrentUser: true);
+        }
+
+        /// <summary>
+        /// Returns <see cref="IQueryable{TEntity}"/> which allows to control whether or not to filter entities by current user.
+        /// </summary>
+        /// <param name="filterByCurrentUser">Returns current user's entities if <c>true</c>. No filter applied if <c>false</c>.</param>
+        public IQueryable<TEntity> Get(bool filterByCurrentUser)
+        {
+            if (filterByCurrentUser)
+            {
+                var currentUserId = this.userContext.GetCurrentUserId();
+                return base.Get().Where(i => Equals(i.CreatedBy, currentUserId));
+            }
+
+            return base.Get();
+        }
+    }
+
     /// <summary>
     ///     Implementation of a generic repository.
     /// </summary>
@@ -21,35 +57,25 @@ namespace EFCore.Toolkit
     {
         protected readonly DbSet<T> DbSet;
         private readonly IDbContext context;
+
         private bool isDisposed;
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="GenericRepository{T}" /> class.
         /// </summary>
-        // ReSharper disable once PublicConstructorInAbstractClass
         public GenericRepository(IDbContext context)
         {
-            if (context == null)
-            {
-                throw new ArgumentNullException(nameof(context));
-            }
-
-            this.context = context;
+            this.context = context ?? throw new ArgumentNullException(nameof(context));
 
             this.DbSet = this.context.Set<T>();
         }
 
-        /// <inheritdoc />
-        public IContext Context
-        {
-            get
-            {
-                return this.context;
-            }
-        }
 
         /// <inheritdoc />
-        public IQueryable<T> Get()
+        public IContext Context => this.context;
+
+        /// <inheritdoc />
+        public virtual IQueryable<T> Get()
         {
             return this.DbSet;
         }
@@ -57,7 +83,7 @@ namespace EFCore.Toolkit
         /// <inheritdoc />
         public virtual IEnumerable<T> GetAll()
         {
-            return this.DbSet.AsEnumerable();
+            return this.Get().AsEnumerable();
         }
 
         /// <inheritdoc />
@@ -69,25 +95,19 @@ namespace EFCore.Toolkit
         /// <inheritdoc />
         public IEnumerable<T> FindBy(Expression<Func<T, bool>> predicate)
         {
-            IEnumerable<T> query = this.DbSet.Where(predicate).AsEnumerable();
+            IEnumerable<T> query = this.Get().Where(predicate).AsEnumerable();
             return query;
         }
 
         public bool Any(Expression<Func<T, bool>> predicate)
         {
-            return this.DbSet.Any(predicate);
+            return this.Get().Any(predicate);
         }
 
         /// <inheritdoc />
         public virtual T Add(T entity)
         {
             return this.DbSet.Add(entity).Entity;
-        }
-
-        /// <inheritdoc />
-        public virtual TDerived Add<TDerived>(TDerived entity) where TDerived : class, T
-        {
-            return this.context.Set<TDerived>().Add(entity).Entity;
         }
 
         /// <inheritdoc />
@@ -106,17 +126,11 @@ namespace EFCore.Toolkit
         /// <inheritdoc />
         public virtual T Update(T entity)
         {
-            return this.context.Edit(entity);
+            return this.DbSet.Update(entity).Entity;
         }
 
         /// <inheritdoc />
         public virtual T Update(T entity, T updateEntity)
-        {
-            return this.Update<T>(entity, updateEntity);
-        }
-
-        /// <inheritdoc />
-        public virtual TDerived Update<TDerived>(TDerived entity, TDerived updateEntity) where TDerived : class, T
         {
             return this.context.Edit(entity, updateEntity);
         }

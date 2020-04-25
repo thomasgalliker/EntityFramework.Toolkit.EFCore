@@ -1,10 +1,10 @@
 ####################################################################
-# VSTS Build Configuration
+# VSTS Build Configuration, Version 1.2
 #
-# (c)2018 superdev GmbH
+# (c)2020 superdev GmbH
 ####################################################################
 
-name: 2.0.$(date:yy)$(DayOfYear).$(rev:rr)
+name: 0.0.$(date:yy)$(DayOfYear).$(rev:rr)
   
 queue:
   name: Hosted VS2017
@@ -14,59 +14,50 @@ queue:
   - vstest
 
 trigger:
-- master
-- develop
-- release/*
+  branches:
+    include:
+    - master
+    - develop
+    - release/*
+    - feature/*
+
+  paths:
+    exclude:
+    - README.md
+
+variables:
+  solution: 'EFCore.Toolkit.sln'
+  buildPlatform: 'Any CPU'
+  buildConfiguration: 'Release'
 
 steps:
 - task: bleddynrichards.Assembly-Info-Task.Assembly-Info-Task.Assembly-Info-Task@1
   displayName: 'Set Assembly Manifest Data'
   inputs:
     FileNames: |
-     $(Parameters.csproj)
-
+     EFCore.Toolkit.csproj
+     EFCore.Toolkit.Abstractions.csproj
     InsertAttributes: true
-
+    Title: 'EFCore.Toolkit'
+    Description: ''
+    Company: 'superdev GmbH'
+    Copyright: '(c) $(date:yyyy) superdev GmbH'
     VersionNumber: '$(Build.BuildNumber)'
-
     FileVersionNumber: '$(Build.BuildNumber)'
-
 
 - task: NuGetToolInstaller@0
   displayName: 'Use NuGet 4.4.1'
   inputs:
     versionSpec: 4.4.1
 
-
 - task: NuGetCommand@2
   displayName: 'NuGet restore'
   inputs:
     restoreSolution: '$(Parameters.solution)'
 
-
 - powershell: |
-   $branch1="develop"
-   $branch2="master"
-   
-   [String]$buildNumber= $Env:BUILD_BUILDNUMBER
-   [String]$rev = $buildNumber.Substring($buildNumber.LastIndexOf('.') + 1)
-   echo "rev=$rev"
-   
-   if ("$(Build.SourceBranchName)" -eq $branch1)
-   {
-     echo "the build is on $branch1"
-   
-     Write-Host "##vso[task.setvariable variable=PackageVersion]$(Build.BuildNumber)$(BuildVersionPostfix)"
-   }
-   elseif ("$(Build.SourceBranchName)" -eq $branch2)
-   {
-     echo "the build is on $branch2"
-     Write-Host "##vso[task.setvariable variable=PackageVersion]$(Build.BuildNumber)"
-   }
-   else
-   {
-     echo "it's either on $branch1 branch nor $branch2 branch"
-   } 
+   Write-Host "##vso[task.setvariable variable=PackageVersion]$(Build.BuildNumber)"
+   Write-Host "##vso[task.setvariable variable=PackageVersionPre]$(Build.BuildNumber)$(BuildVersionPostfix)"
   displayName: 'Set PackageVersion'
 
 - task: VSBuild@1
@@ -77,29 +68,29 @@ steps:
     platform: '$(BuildPlatform)'
     configuration: '$(BuildConfiguration)'
 
-- task: DotNetCoreCLI@2
-  displayName: 'Run UnitTests'
-  inputs:
-    command: test
-    projects: '**/*.Tests.csproj '
-    arguments: ''
+#- task: DotNetCoreCLI@2
+#  displayName: 'Run UnitTests'
+#  continueOnError: true # TODO: Activate test step
+#  inputs:
+#    command: test
+#    projects: '**/*.Tests.csproj'
+#    arguments: ''
 
 - task: DotNetCoreCLI@2
-  displayName: 'dotnet pack'
+  displayName: 'Pack NuGet PreRelease'
   inputs:
     command: pack
-    packagesToPack: EntityFramework.Toolkit.EF6/EntityFramework.Toolkit.EF6.csproj
+    packagesToPack: '**\EFCore.Toolkit*.csproj'
+    versioningScheme: byEnvVar
+    versionEnvVar: PackageVersionPre
+
+- task: DotNetCoreCLI@2
+  displayName: 'Pack NuGet Prod'
+  inputs:
+    command: pack
+    packagesToPack: '**\EFCore.Toolkit*.csproj'
     versioningScheme: byEnvVar
     versionEnvVar: PackageVersion
-
-- task: PublishSymbols@2
-  displayName: 'Publish symbols path'
-  inputs:
-    SearchPattern: '**\bin\**\*.pdb'
-
-    PublishSymbols: false
-
-  continueOnError: true
 
 - task: CopyFiles@2
   displayName: 'Copy Files to: $(Build.ArtifactStagingDirectory)'
@@ -112,7 +103,5 @@ steps:
 
     TargetFolder: '$(Build.ArtifactStagingDirectory)'
 
-
 - task: PublishBuildArtifacts@1
   displayName: 'Publish Artifact: drop'
-

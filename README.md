@@ -17,7 +17,7 @@ Use the following command to install EFCore.Toolkit using NuGet package manager 
 	
 For contract assemblies you may only want to use the abstractions of EFCore.Toolkit. For this reason, you can install EFCore.Toolkit.Core which comes as a dedicated NuGet package and is absolutely free of any dependencies.
 
-	PM> Install-Package EFCore.Toolkit.Core
+	PM> Install-Package EFCore.Toolkit.Contracts
 
 ### API Usage
 #### Repository pattern and GenericRepository
@@ -41,7 +41,7 @@ Providing databases with predefined data is an essential feature. IDataSeed is t
 ### EFCore.Toolkit and IoC
 EFCore.Toolkit is ready to be used with an IoC framework. You may intend to create a data access module which contains your EF context, the repositories, the entity type configurations, etc. On top of that, you want to promote the CRUD-style repositories to whoever want to consume your data access layer. So, simply create a seperate data access abstraction assembly which contains an interface definition for your repositories. Have a look at the ToolkitSample provided in this project. This sample project adds modularity using the well-known Autofac IoC framework. Have a look at the module configuration ```DataAccessModule``` to get an impression of how to set-up the dependencies.
 
-```
+```C#
 // Register all data seeds:
 builder.RegisterType<DepartmentDataSeed>().As<IDataSeed>().SingleInstance();
 

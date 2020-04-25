@@ -1,8 +1,8 @@
 ﻿using System;
 using EFCore.Toolkit;
+using EFCore.Toolkit.Abstractions;
 using EFCore.Toolkit.Auditing;
 using EFCore.Toolkit.Auditing.Extensions;
-using EFCore.Toolkit.Contracts;
 using EFCore.Toolkit.Extensions;
 using Microsoft.EntityFrameworkCore;
 
@@ -41,8 +41,11 @@ namespace ToolkitSample.DataAccess.Context
         {
             base.OnConfiguring(optionsBuilder);
         }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            base.OnModelCreating(modelBuilder);
+
             this.Database.KillConnectionsToTheDatabase();
 
             modelBuilder.AddConfiguration(new PersonEntityConfiguration());
@@ -50,7 +53,7 @@ namespace ToolkitSample.DataAccess.Context
             modelBuilder.AddConfiguration(new EmployeeAuditEntityTypeConfiguration());
             modelBuilder.AddConfiguration(new StudentEntityConfiguration());
             modelBuilder.AddConfiguration(new DepartmentEntityConfiguration());
-            modelBuilder.AddConfiguration(new RoomConfiguration());
+            modelBuilder.AddConfiguration(new RoomEntityTypeConfiguration());
             modelBuilder.AddConfiguration(new CountryEntityConfiguration());
             modelBuilder.AddConfiguration(new ApplicationSettingEntityTypeConfiguration());
 

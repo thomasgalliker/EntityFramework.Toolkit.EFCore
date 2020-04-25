@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Linq.Expressions;
 
-namespace EFCore.Toolkit.Contracts
+namespace EFCore.Toolkit.Abstractions
 {
     /// <summary>
     ///     Abstraction of a generic repository.
@@ -22,8 +22,6 @@ namespace EFCore.Toolkit.Contracts
         ///     to Added. Add is a no-op if the entity is already in the context in the Added state.
         /// </remarks>
         T Add(T entity);
-
-        TDerived Add<TDerived>(TDerived entity) where TDerived : class, T;
 
         IEnumerable<T> AddRange(IEnumerable<T> entities);
 
@@ -47,13 +45,6 @@ namespace EFCore.Toolkit.Contracts
         /// <param name="entity">The existing entity.</param>
         /// <param name="updateEntity">The update entity.</param>
         T Update(T entity, T updateEntity);
-
-        /// <summary>
-        ///     Updates the given entity. This method checks if an entity exists before it tries to perform the update activity.
-        /// </summary>
-        /// <param name="entity">The existing entity.</param>
-        /// <param name="updateEntity">The update entity.</param>
-        TDerived Update<TDerived>(TDerived entity, TDerived updateEntity) where TDerived : class, T;
 
         /// <summary>
         /// Update given properties in <paramref name="propertyExpressions"/> of given <paramref name="entity"/>.

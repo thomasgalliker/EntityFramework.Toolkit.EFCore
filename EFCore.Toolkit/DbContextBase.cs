@@ -1,13 +1,17 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
+using System.Data.Common;
 using System.Diagnostics;
 using System.Linq;
 using System.Linq.Expressions;
 using EFCore.Toolkit.Concurrency;
-using EFCore.Toolkit.Contracts;
+using EFCore.Toolkit.Abstractions;
 using EFCore.Toolkit.Exceptions;
 using EFCore.Toolkit.Extensions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
+using IDbConnection = EFCore.Toolkit.Abstractions.IDbConnection;
 #if !NET40
 using System.Threading.Tasks;
 
@@ -19,8 +23,6 @@ namespace EFCore.Toolkit
         where TContext : DbContext
     {
         private static readonly IList<TContext> InitializerLock = new List<TContext>();
-
-        private readonly string contextName = typeof(TContext).GetFormattedName();
         private readonly IDatabaseInitializer<TContext> databaseInitializer;
         private readonly IDbConnection dbConnection;
 
@@ -32,8 +34,18 @@ namespace EFCore.Toolkit
             //TryInitializeDatabase(this, null);
         }
 
+        protected DbContextBase(DbContextOptions dbContextOptions)
+            : this(dbContextOptions, databaseInitializer: null, log: null)
+        {
+        }
+
         protected DbContextBase(DbContextOptions dbContextOptions, IDatabaseInitializer<TContext> databaseInitializer)
             : this(dbContextOptions, databaseInitializer, log: null)
+        {
+        }
+        
+        protected DbContextBase(DbContextOptions dbContextOptions, Action<string> log)
+            : this(dbContextOptions, databaseInitializer: null, log: log)
         {
         }
 
@@ -42,10 +54,15 @@ namespace EFCore.Toolkit
         {
             this.EnsureLog(log);
 
-            this.log($"Initializing DbContext '{this.contextName}' with NameOrConnectionString = \"{this.Database.GetDbConnection().ConnectionString}\" and IDatabaseInitializer =\"{databaseInitializer?.GetType().GetFormattedName()}\"");
+            this.log($"Initializing DbContext '{this.Name}' with NameOrConnectionString = \"{this.GetConnectionString()}\" and IDatabaseInitializer =\"{databaseInitializer?.GetType().GetFormattedName()}\"");
 
             this.databaseInitializer = databaseInitializer;
             this.TryInitializeDatabase();
+        }
+
+        private string GetConnectionString()
+        {
+            return this.dbConnection?.ConnectionString ?? null;
         }
 
         protected DbContextBase(IDbConnection dbConnection, IDatabaseInitializer<TContext> databaseInitializer)
@@ -59,7 +76,7 @@ namespace EFCore.Toolkit
             this.EnsureLog(log);
             this.dbConnection = dbConnection;
 
-            this.log($"Initializing DbContext '{this.contextName}' with ConnectionString = \"{dbConnection.ConnectionString}\" and IDatabaseInitializer=\"{databaseInitializer?.GetType().GetFormattedName()}\"");
+            this.log($"Initializing DbContext '{this.Name}' with ConnectionString = \"{this.GetConnectionString()}\" and IDatabaseInitializer=\"{databaseInitializer?.GetType().GetFormattedName()}\"");
 
             this.databaseInitializer = databaseInitializer;
             this.TryInitializeDatabase();
@@ -67,9 +84,33 @@ namespace EFCore.Toolkit
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
-            optionsBuilder.UseSqlServer(this.dbConnection.ConnectionString);
+            this.log($"{this.Name}.OnConfiguring");
+
+            if (this.GetConnectionString() is string connectionString && connectionString != null)
+            {
+                optionsBuilder.UseSqlServer(connectionString);
+            }
+
+            //if (!optionsBuilder.Options.Extensions.Any(extension => extension.GetType().Name == "InMemoryOptionsExtension"))
+            //{
+            //    optionsBuilder.UseSqlServer(connectionString);
+            //}
+
             //optionsBuilder.UseLoggerFactory(new Consol)
         }
+
+        /// <inheritdoc />
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            this.log($"{this.Name}.OnModelCreating");
+     
+            ////modelBuilder.Remove<PluralizingTableNameConvention>();
+
+#if !NETSTANDARD1_3 && !NETFX
+            modelBuilder.Query<TableRowCounts>();
+#endif
+        }
+
 
         private void EnsureLog(Action<string> log = null)
         {
@@ -84,23 +125,26 @@ namespace EFCore.Toolkit
         private Action<string> log { get; set; }
 
         /// <inheritdoc />
-        public string Name
-        {
-            get { return this.contextName; }
-        }
+        public string Name { get; } = typeof(TContext).GetFormattedName();
 
         private void TryInitializeDatabase(bool force = false)
         {
+            if (this.databaseInitializer == null)
+            {
+                return;
+            }
+
             try
             {
                 lock (InitializerLock)
                 {
+                    this.log($"TryInitializeDatabase: this.databaseInitializer={this.databaseInitializer.GetType().GetFormattedName()}, force={force}");
                     this.databaseInitializer.Initialize(this, force);
                 }
             }
             catch (Exception ex)
             {
-                this.log(ex.ToString());
+                this.log($"TryInitializeDatabase failed with exception: {ex}");
             }
         }
 
@@ -113,7 +157,7 @@ namespace EFCore.Toolkit
         /// <inheritdoc />
         public void ResetDatabase()
         {
-            this.log($"ResetDatabase of DbContext '{this.contextName}' with ConnectionString = \"{this.Database.GetDbConnection().ConnectionString}\"");
+            this.log($"ResetDatabase of DbContext '{this.Name}' with ConnectionString = \"{this.GetConnectionString()}\"");
 
             this.InternalResetDatabase();
         }
@@ -128,7 +172,7 @@ namespace EFCore.Toolkit
         /// <inheritdoc />
         public void DropDatabase()
         {
-            this.log($"DropDatabase of DbContext '{this.contextName}' with ConnectionString = \"{this.Database.GetDbConnection().ConnectionString}\"");
+            this.log($"DropDatabase of DbContext '{this.Name}' with ConnectionString = \"{this.GetConnectionString()}\"");
 
             this.InternalDropDatabase();
         }
@@ -196,6 +240,12 @@ namespace EFCore.Toolkit
             {
                 entry.Property(propertyName).IsModified = true;
             }
+
+            //if (property.Metadata.IsShadowProperty)
+            //{
+            //    // BUG: Workaround for resetting IsModified of Discriminator property
+            //    property.IsModified = false;
+            //}
         }
 
         /// <inheritdoc />
@@ -238,7 +288,7 @@ namespace EFCore.Toolkit
 
 #if !NET40
         /// <inheritdoc />
-        public new virtual async Task<ChangeSet> SaveChangesAsync()
+        public virtual async Task<ChangeSet> SaveChangesAsync()
         {
             var changeSet = this.GetChangeSet();
             try
@@ -264,6 +314,19 @@ namespace EFCore.Toolkit
             }
 
             return changeSet;
+        }
+
+        public ITransaction BeginTransaction()
+        {
+            var dbContextTransaction = this.Database.BeginTransaction();
+            return new InternalDbContextTransaction(dbContextTransaction);
+        }
+
+        public void UseTransaction(ITransaction transaction)
+        {
+            var internalDbContextTransaction = (InternalDbContextTransaction)transaction;
+            var dbTransaction = internalDbContextTransaction.GetDbTransaction();
+            this.Database.UseTransaction(dbTransaction);
         }
 #endif
 
@@ -297,19 +360,15 @@ namespace EFCore.Toolkit
             entry.CurrentValues.SetValues(resolvedValuesAsObject);
         }
 
-        /// <inheritdoc />
-        protected override void OnModelCreating(ModelBuilder modelBuilder)
-        {
-            ////modelBuilder.Remove<PluralizingTableNameConvention>();
-        }
-
         /// <summary>
-        ///     Determins the changes that are transfered to the persistence layer.
+        ///     Determines the changes that are transferred to the persistence layer.
         /// </summary>
         /// <returns>ChangeSet.</returns>
         private ChangeSet GetChangeSet()
         {
-            var updatedEntries = this.ChangeTracker.Entries().Where(e => e.State == EntityState.Modified && e.Entity != null);
+            var updatedEntries = this.ChangeTracker.Entries()
+                .Where(e => e.State == EntityState.Modified && e.Entity != null);
+
             var updateChanges = new List<IChange>();
 
             foreach (var dbEntityEntry in updatedEntries)
@@ -318,6 +377,12 @@ namespace EFCore.Toolkit
                 foreach (var propertyName in dbEntityEntry.CurrentValues.Properties.Select(p => p.Name))
                 {
                     var property = dbEntityEntry.Property(propertyName);
+                    if (property.Metadata.IsShadowProperty)
+                    {
+                        // BUG: Workaround for resetting IsModified of Discriminator property
+                        property.IsModified = false;
+                    }
+
                     if (property.IsModified)
                     {
                         changes.Add(new PropertyChangeInfo(propertyName, property.CurrentValue));
@@ -326,8 +391,13 @@ namespace EFCore.Toolkit
                 updateChanges.Add(Change.CreateUpdateChange(dbEntityEntry.Entity, changes));
             }
 
-            var addChanges = this.ChangeTracker.Entries().Where(e => e.State == EntityState.Added && e.Entity != null).Select(e => Change.CreateAddedChange(e.Entity));
-            var deleteChanges = this.ChangeTracker.Entries().Where(e => e.State == EntityState.Deleted && e.Entity != null).Select(n => Change.CreateDeleteChange(n.Entity));
+            var addChanges = this.ChangeTracker.Entries()
+                .Where(e => e.State == EntityState.Added && e.Entity != null)
+                .Select(e => Change.CreateAddedChange(e.Entity));
+
+            var deleteChanges = this.ChangeTracker.Entries()
+                .Where(e => e.State == EntityState.Deleted && e.Entity != null)
+                .Select(n => Change.CreateDeleteChange(n.Entity));
 
             var allChanges = new List<IChange>(addChanges);
             allChanges.AddRange(deleteChanges);
@@ -340,7 +410,12 @@ namespace EFCore.Toolkit
         public bool IsDisposed { get; private set; }
 
         /// <inheritdoc />
-        /// :
+        public override void Dispose()
+        {
+            this.Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
         public virtual void Dispose(bool disposing)
         {
             if (this.IsDisposed)
@@ -348,9 +423,42 @@ namespace EFCore.Toolkit
                 return;
             }
 
-            //base.Dispose(disposing);
+            if (disposing)
+            {
+                base.Dispose();
+            }
 
             this.IsDisposed = true;
+        }
+    }
+
+    public class InternalDbContextTransaction : ITransaction
+    {
+        private readonly IDbContextTransaction dbContextTransaction;
+
+        public InternalDbContextTransaction(IDbContextTransaction dbContextTransaction)
+        {
+            this.dbContextTransaction = dbContextTransaction;
+        }
+
+        public void Dispose()
+        {
+            this.dbContextTransaction?.Dispose();
+        }
+
+        public void Commit()
+        {
+            this.dbContextTransaction.Commit();
+        }
+
+        public void Rollback()
+        {
+            this.dbContextTransaction.Rollback();
+        }
+
+        public DbTransaction GetDbTransaction()
+        {
+            return this.dbContextTransaction.GetDbTransaction();
         }
     }
 }

@@ -1,5 +1,5 @@
 ﻿using System.Collections.Generic;
-using EFCore.Toolkit.Contracts;
+using EFCore.Toolkit.Abstractions;
 using EFCore.Toolkit.Testing;
 using ToolkitSample.DataAccess;
 using ToolkitSample.DataAccess.Context;
@@ -7,7 +7,7 @@ using ToolkitSample.DataAccess.Seed;
 using Xunit.Abstractions;
 
 
-namespace EntityFramework.Toolkit.Tests.Repository
+namespace EFCore.Toolkit.Tests.Repository
 {
     public class PersonRepositoryTests : ContextTestBase<EmployeeContext>
     {
